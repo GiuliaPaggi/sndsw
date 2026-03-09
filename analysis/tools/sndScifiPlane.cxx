@@ -11,6 +11,7 @@
 #include "sndScifiHit.h"
 #include "ShipUnit.h"
 #include "Math/Point3D.h"
+#include "FairLogger.h"
 
 snd::analysis_tools::ScifiPlane::ScifiPlane(std::vector<sndScifiHit*> snd_hits, const Configuration &configuration, Scifi *scifi_geometry, int station) : configuration_(configuration), centroid_(std::nan(""), std::nan(""), std::nan("")), centroid_error_(std::nan(""), std::nan(""), std::nan("")), station_(station)
 {
@@ -298,45 +299,7 @@ const snd::analysis_tools::ScifiPlane::xy_pair<double> snd::analysis_tools::Scif
     return energy;
 }
 
-void snd::analysis_tools::ScifiPlane::ComputeDensity() {
-    // Split by view
-    std::vector<ScifiHit*> xhits;
-    std::vector<ScifiHit*> yhits;
-
-    for (auto& h : hits_) (h.is_x ? xhits : yhits).push_back(&h);
-
-    auto computeViewDensity = [&](std::vector<ScifiHit*>& hs, auto coordGetter) {
-        if (hs.empty())
-            return;
-
-        // Sort by coordinate
-        std::sort(hs.begin(), hs.end(),
-                  [&](const ScifiHit* a, const ScifiHit* b) {
-                      return coordGetter(*a) < coordGetter(*b);
-                  });
-
-        int n = hs.size();
-        int right = 0;
-        int left = 0;
-
-        for (int i = 0; i < n; ++i) {
-            double ci = coordGetter(*hs[i]);
-
-            // move left so coord[i] - coord[left] <= range
-            while (left < i && ci - coordGetter(*hs[left]) > configuration_.scifi_density_radius) ++left;
-
-            // move right forward so coord[right] - coord[i] <= range
-            if (right < i) right = i; // ensure right is at least i
-            while (right + 1 < n && coordGetter(*hs[right + 1]) - ci <= configuration_.scifi_density_radius) ++right;
-
-            // Window size = (right - left + 1)
-            hs[i]->density = right - left + 1;
-        }
-    };
-
-    // X view → density in X
-    computeViewDensity(xhits, [](const ScifiHit& h) { return h.x; });
-
-    // Y view → density in Y
-    computeViewDensity(yhits, [](const ScifiHit& h) { return h.y; });
+void snd::analysis_tools::ScifiPlane::ScifiHit::Print() const 
+{
+    LOGF(INFO, "ScifiHit ch_idx :%d\tposition: (%f,%f,%f)\ttime: %f\tqdc: %f\tis_x: %d", channel_index, x, y, z, timestamp, qdc, is_x);
 }

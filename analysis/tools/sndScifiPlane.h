@@ -31,6 +31,8 @@ namespace snd {
                 int channel_index{};
                 int density{};
                 bool is_x{};
+                
+                void Print() const;
             };
 
             ScifiPlane(std::vector<sndScifiHit*> snd_hits, const Configuration &configuration, Scifi *scifi_geometry, int station);
