@@ -9,11 +9,14 @@
 #include "MuFilter.h"
 #include "sndConfiguration.h"
 #include "sndVetoPlane.h"
+#include "sndVetoPlane.h"
 #include "sndScifiPlane.h"
 #include "sndUSPlane.h"
 #include "sndDSPlane.h"
+#include "sndDSPlane.h"
 #include "sndScifiHit.h"
 #include "MuFilterHit.h"
+
 
 std::vector<snd::analysis_tools::VetoPlane> snd::analysis_tools::FillVeto(const snd::Configuration &configuration,
                                                                           TClonesArray *mufi_hits,
@@ -47,8 +50,8 @@ std::vector<snd::analysis_tools::ScifiPlane>
 snd::analysis_tools::FillScifi(const snd::Configuration &configuration, TClonesArray *sf_hits, Scifi *scifi_geometry)
 {
 
-   std::vector<snd::analysis_tools::ScifiPlane> scifi_planes;
-   const int n_sf_hits{sf_hits->GetEntries()};
+  std::vector<snd::analysis_tools::ScifiPlane> scifi_planes;
+  int n_sf_hits{sf_hits->GetEntries()}; 
 
    const int max_station = configuration.scifi_n_stations;
    std::vector<std::vector<sndScifiHit *>> stations_hits(max_station);

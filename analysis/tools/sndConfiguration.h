@@ -67,7 +67,7 @@ namespace snd {
     double veto_min_cluster_radius_y;
     double veto3_min_cluster_radius_x;
     double veto3_min_cluster_radius_y;
-    
+
     int scifi_n_stations;
     int scifi_n_channels_per_plane;
     int scifi_boards_per_plane;
