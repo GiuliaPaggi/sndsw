@@ -52,7 +52,8 @@ namespace snd {
             xy_pair<double> GetPointQdc(const ROOT::Math::XYZPoint &point, double radius) const;
 
             void ComputeDensity();        
-
+            int GetDensitySum() const;
+            
         private:
             std::vector<ScifiHit> hits_;
             Configuration configuration_;

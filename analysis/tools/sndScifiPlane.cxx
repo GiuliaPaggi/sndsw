@@ -340,3 +340,10 @@ void snd::analysis_tools::ScifiPlane::ComputeDensity() {
     // Y view → density in Y
     computeViewDensity(yhits, [](const ScifiHit& h) { return h.y; });
 }
+
+int snd::analysis_tools::ScifiPlane::GetDensitySum() const 
+{   
+    int sum{0};
+    for (const auto &h : hits_ ) sum+=h.density;
+    return sum;
+}
