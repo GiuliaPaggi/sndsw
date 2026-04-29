@@ -32,6 +32,7 @@ namespace snd {
                 bool is_x{};
                 
                 void Print() const;
+                inline ROOT::Math::XYZPoint HitPosition() const {return ROOT::Math::XYZPoint(x, y, z);};
             };
 
             ScifiPlane(std::vector<sndScifiHit*> snd_hits, const Configuration &configuration, Scifi *scifi_geometry, int station);
