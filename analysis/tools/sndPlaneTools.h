@@ -14,6 +14,7 @@
 #include "sndScifiPlane.h"
 #include "sndUSPlane.h"
 #include "sndDSPlane.h"
+#include "sndGeometryGetter.h"
 
 namespace snd {
     namespace analysis_tools {
@@ -25,12 +26,11 @@ namespace snd {
     
         struct Cluster {
             ROOT::Math::XYZPoint center;
-            double radius;   // in 2D: circle radius, in 1D: half-length
-            bool is2D;
+            ROOT::Math::XYZPoint radius;   // in 2D: circle radius, in 1D: half-length
         };
 
         template <typename H>
-        std::vector<Cluster> ClustersPositions(std::vector<H> hits, double min_radius_x, double min_radius_y, double max_gap = 1.0) {
+        std::vector<Cluster> ClustersPositions(const snd::Configuration &configuration, const snd::analysis_tools::DetectorBoundaries &boundaries, std::vector<H> hits, double min_radius_x, double min_radius_y, double max_gap = 1.0) {
 
         static_assert(std::is_convertible_v<decltype(std::declval<const H>().HitPosition()), ROOT::Math::XYZPoint>,
                         "Hit class must have HitPosition()");
@@ -44,9 +44,9 @@ namespace snd {
             });
 
             // Lambda that sorts a group and clusters it along the given axis
-            auto clusterAlong = [&](std::vector<H>& group, bool useX) {
-
-                if (group.empty()) return;
+            auto clusterAlong = [&](std::vector<H>& group, bool useX) -> std::vector<snd::analysis_tools::Cluster> {
+                std::vector<snd::analysis_tools::Cluster> result;
+                if (group.empty()) return result;
 
                 std::sort(group.begin(), group.end(), [useX](const auto& a, const auto& b) {
                     float aPos = useX ? a.x : a.y;
@@ -106,47 +106,107 @@ namespace snd {
                         }
                     }
 
+                    
                     bool hasX = (countX > 0);
                     bool hasY = (countY > 0);
                     bool is2D = hasX && hasY;
 
+                    double measured_radius = (hasX || hasY) ? (max_pos - min_pos) / 2.0 : NAN;
+                    
+                    double x_avg = NAN, x_max = NAN, x_min = NAN;
+                    double y_avg = NAN, y_max = NAN, y_min = NAN;
+                    double z_avg = NAN;
+
+                    if (countZ > 0) {
+                        auto boundary = snd::analysis_tools::FindBoundary(boundaries, sumz / countZ);
+                        x_avg = boundary->at("x_avg");
+                        x_min = boundary->at("x_min");
+                        x_max = boundary->at("x_max");
+                        y_avg = boundary->at("y_avg");
+                        y_min = boundary->at("y_min");
+                        y_max = boundary->at("y_max");
+                        z_avg = boundary->at("z_avg");
+                    }   
+
                     ROOT::Math::XYZPoint center(
-                        hasX ? sumx / countX : NAN,
-                        hasY ? sumy / countY : NAN,
-                        countZ > 0 ? sumz / countZ : NAN
+                        hasX ? sumx / countX : x_avg,
+                        hasY ? sumy / countY : y_avg,
+                        countZ > 0 ? sumz / countZ : z_avg
                     );
 
-                    double min_radius = useX ? min_radius_x : min_radius_y;
-                    double radius = 0.0;
+                    double rx, ry, rz;
 
-                    if (is2D) {
-                        double max_dist_sq = 0.0;
-                        for (size_t i = start; i <= end; ++i) {
-                            auto p = group[i].HitPosition();
-                            double dx = p.X() - center.X();
-                            double dy = p.Y() - center.Y();
-                            max_dist_sq = std::max(max_dist_sq, dx*dx + dy*dy);
-                        }
-                        radius = std::sqrt(max_dist_sq);
-                        if (radius < min_radius) radius = min_radius;
-                    } else if (hasX || hasY) {
-                        radius = (max_pos - min_pos) / 2.0;
-                        if (radius < min_radius) radius = min_radius;
+                    if (hasX > 0) {
+                        rx = measured_radius;
+                        if (rx < min_radius_x) rx = min_radius_x;
+                    } else {
+                        rx = (x_max-x_min) / 2.0;
                     }
+
+                    if (hasY > 0) {
+                        ry = measured_radius;
+                        if (ry < min_radius_y) ry = min_radius_y;
+                    } else {
+                        ry = (y_max-y_min) / 2.0;
+                    }
+
+                    rz = (countZ > 0) ? z_avg : NAN;
 
                     // std::cout << "DEBUG: New Cluster from hits " << start << " to " << end
                     //         << " (Total hits in cluster: " << (end - start + 1) << ")" << std::endl;
                     // for (size_t i = start; i <= end; ++i) group[i].Print();
 
-                    clusters.push_back({center, radius, is2D});
+                    ROOT::Math::XYZPoint radius(rx, ry, rz);
+                    result.push_back({center, radius});   
                     start = end + 1;
                 }
+                return result;
             };
 
-            if (any2D) {
-                // All hits have y, some also have x — cluster together along y
-                clusterAlong(hits, false);
-            } else {
+        if (any2D) {
+            std::vector<snd::analysis_tools::Cluster> y_clusters = clusterAlong(hits, false);
+
+            // Re-cluster each y-group along x by collecting the hits that fell into it
+            // We need to re-sort hits by y to recover the original grouping boundaries
+            std::sort(hits.begin(), hits.end(), [](const auto& a, const auto& b) {
+                if (std::isnan(a.y)) return false;
+                if (std::isnan(b.y)) return true;
+                return a.y < b.y;
+            });
+
+            size_t hit_start = 0;
+            for (const auto& yc : y_clusters) {
+                // Collect all hits whose y falls within [cy - ry, cy + ry]
+                double y_lo = yc.center.Y() - yc.radius.Y();
+                double y_hi = yc.center.Y() + yc.radius.Y();
+
+                std::vector<H> sub_hits;
+                for (const auto& h : hits) {
+                    auto p = h.HitPosition();
+                    if (!std::isnan(p.Y()) && p.Y() >= y_lo && p.Y() <= y_hi)
+                        sub_hits.push_back(h);
+                }
+
+                // Check if any hit in this y-cluster actually has an x coordinate
+                bool hasX = std::any_of(sub_hits.begin(), sub_hits.end(), [](const auto& h) {
+                    return !std::isnan(h.x);
+                });
+
+                if (hasX) {
+                    // Subdivide along x — results replace the coarse y-cluster
+                    auto x_sub = clusterAlong(sub_hits, true);
+                    for (auto& c : x_sub) {
+                        // Preserve the y and z information from the parent y-cluster
+                        // for any component that x-clustering left as NaN
+                        if (std::isnan(c.center.Y())) c.center.SetY(yc.center.Y());
+                        if (std::isnan(c.radius.Y()))  c.radius.SetY(yc.radius.Y());
+                        clusters.push_back(c);
+                    }
+                } else {
+                    clusters.push_back(yc);
+                }
+            }
+        } else {
                 // Hits are strictly x-only or y-only — split and cluster independently
                 std::vector<H> xHits, yHits;
                 for (const auto& h : hits) {
