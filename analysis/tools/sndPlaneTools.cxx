@@ -165,3 +165,9 @@ snd::analysis_tools::FindRange(const std::vector<std::vector<snd::analysis_tools
    else
       return std::make_pair(flattened_planes[0].energy, flattened_planes[flattened_planes.size() - 1].energy);
 }
+
+
+// template <typename H>
+// std::vector<snd::analysis_tools::Cluster>
+// ClustersPositions(const std::vector<H>& hits, double max_gap)
+
