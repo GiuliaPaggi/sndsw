@@ -32,17 +32,27 @@ namespace snd {
         template <typename H>
         std::vector<Cluster> ClustersPositions(const snd::Configuration &configuration, const snd::analysis_tools::DetectorBoundaries &boundaries, std::vector<H> hits, double min_radius_x, double min_radius_y, double max_gap = 1.0) {
 
-        static_assert(std::is_convertible_v<decltype(std::declval<const H>().HitPosition()), ROOT::Math::XYZPoint>,
-                        "Hit class must have HitPosition()");
+            static_assert(std::is_convertible_v<decltype(std::declval<const H>().HitPosition()), ROOT::Math::XYZPoint>,
+                            "Hit class must have HitPosition()");
+            static_assert(std::is_invocable_v<decltype(&H::Print), const H&>, "Hit class must have a Print() method");
 
             std::vector<snd::analysis_tools::Cluster> clusters;
             if (hits.empty()) return clusters;
+
+            hits.erase(std::remove_if(hits.begin(), hits.end(), [](const auto& h) {
+                if (std::isnan(h.z)) {
+                    std::cout << "Removing the hit: ";
+                    h.Print();
+                    return true;
+                }
+                return false;
+            }), hits.end());
 
             // Check if any hit has both x and y valid (2D mixed hits)
             bool any2D = std::any_of(hits.begin(), hits.end(), [](const auto& h) {
                 return !std::isnan(h.x) && !std::isnan(h.y);
             });
-
+            
             // Lambda that sorts a group and clusters it along the given axis
             auto clusterAlong = [&](std::vector<H>& group, bool useX) -> std::vector<snd::analysis_tools::Cluster> {
                 std::vector<snd::analysis_tools::Cluster> result;
@@ -99,10 +109,10 @@ namespace snd {
                             countZ++;
                         }
 
-                        float pos = useX ? p.X() : p.Y();
+                        double pos = useX ? p.X() : p.Y();
                         if (!std::isnan(pos)) {
-                            min_pos = std::min(min_pos, (double)pos);
-                            max_pos = std::max(max_pos, (double)pos);
+                            min_pos = std::min(min_pos, pos);
+                            max_pos = std::max(max_pos, pos);
                         }
                     }
 
@@ -111,46 +121,33 @@ namespace snd {
                     bool hasY = (countY > 0);
                     bool is2D = hasX && hasY;
 
-                    double measured_radius = (hasX || hasY) ? (max_pos - min_pos) / 2.0 : NAN;
+                    double measured_radius = (hasX || hasY) ? (max_pos - min_pos) / 2.0 : std::nan("");
                     
-                    double x_avg = NAN, x_max = NAN, x_min = NAN;
-                    double y_avg = NAN, y_max = NAN, y_min = NAN;
-                    double z_avg = NAN;
+                    double x_avg = std::nan(""), x_max = std::nan(""), x_min = std::nan("");
+                    double y_avg = std::nan(""), y_max = std::nan(""), y_min = std::nan("");
+                    double z_max = std::nan(""), z_min = std::nan("");
 
-                    if (countZ > 0) {
-                        auto boundary = snd::analysis_tools::FindBoundary(boundaries, sumz / countZ);
-                        x_avg = boundary->at("x_avg");
-                        x_min = boundary->at("x_min");
-                        x_max = boundary->at("x_max");
-                        y_avg = boundary->at("y_avg");
-                        y_min = boundary->at("y_min");
-                        y_max = boundary->at("y_max");
-                        z_avg = boundary->at("z_avg");
-                    }   
+                    auto boundary = snd::analysis_tools::FindBoundary(boundaries, sumz / countZ);
+                    x_avg = boundary->at("x_avg");
+                    x_min = boundary->at("x_min");
+                    x_max = boundary->at("x_max");
+                    y_avg = boundary->at("y_avg");
+                    y_min = boundary->at("y_min");
+                    y_max = boundary->at("y_max");
+                    z_min = boundary->at("z_min");
+                    z_max = boundary->at("z_max");
 
                     ROOT::Math::XYZPoint center(
                         hasX ? sumx / countX : x_avg,
                         hasY ? sumy / countY : y_avg,
-                        countZ > 0 ? sumz / countZ : z_avg
+                        sumz / countZ 
                     );
 
                     double rx, ry, rz;
 
-                    if (hasX > 0) {
-                        rx = measured_radius;
-                        if (rx < min_radius_x) rx = min_radius_x;
-                    } else {
-                        rx = (x_max-x_min) / 2.0;
-                    }
-
-                    if (hasY > 0) {
-                        ry = measured_radius;
-                        if (ry < min_radius_y) ry = min_radius_y;
-                    } else {
-                        ry = (y_max-y_min) / 2.0;
-                    }
-
-                    rz = (countZ > 0) ? z_avg : NAN;
+                    rx = hasX ? std::max(measured_radius, min_radius_x) : ((x_max-x_min) / 2.0);
+                    ry = hasY ? std::max(measured_radius, min_radius_y) : ((y_max-y_min) / 2.0);
+                    rz = (z_max-z_min)/2.0;     //half of detector dimension 
 
                     // std::cout << "DEBUG: New Cluster from hits " << start << " to " << end
                     //         << " (Total hits in cluster: " << (end - start + 1) << ")" << std::endl;
@@ -166,14 +163,6 @@ namespace snd {
         if (any2D) {
             std::vector<snd::analysis_tools::Cluster> y_clusters = clusterAlong(hits, false);
 
-            // Re-cluster each y-group along x by collecting the hits that fell into it
-            // We need to re-sort hits by y to recover the original grouping boundaries
-            std::sort(hits.begin(), hits.end(), [](const auto& a, const auto& b) {
-                if (std::isnan(a.y)) return false;
-                if (std::isnan(b.y)) return true;
-                return a.y < b.y;
-            });
-
             size_t hit_start = 0;
             for (const auto& yc : y_clusters) {
                 // Collect all hits whose y falls within [cy - ry, cy + ry]
@@ -183,7 +172,7 @@ namespace snd {
                 std::vector<H> sub_hits;
                 for (const auto& h : hits) {
                     auto p = h.HitPosition();
-                    if (!std::isnan(p.Y()) && p.Y() >= y_lo && p.Y() <= y_hi)
+                    if (p.Y() >= y_lo && p.Y() <= y_hi)
                         sub_hits.push_back(h);
                 }
 
@@ -213,10 +202,9 @@ namespace snd {
                     if (!std::isnan(h.x)) xHits.push_back(h);
                     else                   yHits.push_back(h);
                 }
-                clusterAlong(xHits, true);
-                clusterAlong(yHits, false);
+                for (auto& c : clusterAlong(xHits, true))   clusters.push_back(c);
+                for (auto& c : clusterAlong(yHits, false))  clusters.push_back(c);   
             }
-
             return clusters;
         }
 
