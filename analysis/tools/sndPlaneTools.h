@@ -115,7 +115,6 @@ namespace snd {
                             max_pos = std::max(max_pos, pos);
                         }
                     }
-
                     
                     bool hasX = (countX > 0);
                     bool hasY = (countY > 0);
@@ -123,19 +122,15 @@ namespace snd {
 
                     double measured_radius = (hasX || hasY) ? (max_pos - min_pos) / 2.0 : std::nan("");
                     
-                    double x_avg = std::nan(""), x_max = std::nan(""), x_min = std::nan("");
-                    double y_avg = std::nan(""), y_max = std::nan(""), y_min = std::nan("");
-                    double z_max = std::nan(""), z_min = std::nan("");
-
                     auto boundary = snd::analysis_tools::FindBoundary(boundaries, sumz / countZ);
-                    x_avg = boundary->at("x_avg");
-                    x_min = boundary->at("x_min");
-                    x_max = boundary->at("x_max");
-                    y_avg = boundary->at("y_avg");
-                    y_min = boundary->at("y_min");
-                    y_max = boundary->at("y_max");
-                    z_min = boundary->at("z_min");
-                    z_max = boundary->at("z_max");
+                    double x_avg = boundary->at("x_avg");
+                    double x_min = boundary->at("x_min");
+                    double x_max = boundary->at("x_max");
+                    double y_avg = boundary->at("y_avg");
+                    double y_min = boundary->at("y_min");
+                    double y_max = boundary->at("y_max");
+                    double z_min = boundary->at("z_min");
+                    double z_max = boundary->at("z_max");
 
                     ROOT::Math::XYZPoint center(
                         hasX ? sumx / countX : x_avg,
@@ -143,11 +138,10 @@ namespace snd {
                         sumz / countZ 
                     );
 
-                    double rx, ry, rz;
 
-                    rx = hasX ? std::max(measured_radius, min_radius_x) : ((x_max-x_min) / 2.0);
-                    ry = hasY ? std::max(measured_radius, min_radius_y) : ((y_max-y_min) / 2.0);
-                    rz = (z_max-z_min)/2.0;     //half of detector dimension 
+                    double rx = hasX ? std::max(measured_radius, min_radius_x) : ((x_max-x_min) / 2.0);
+                    double ry = hasY ? std::max(measured_radius, min_radius_y) : ((y_max-y_min) / 2.0);
+                    double rz = (z_max-z_min)/2.0;     //half of detector dimension 
 
                     // std::cout << "DEBUG: New Cluster from hits " << start << " to " << end
                     //         << " (Total hits in cluster: " << (end - start + 1) << ")" << std::endl;
