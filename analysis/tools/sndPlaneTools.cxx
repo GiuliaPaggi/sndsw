@@ -112,8 +112,48 @@ std::vector<snd::analysis_tools::DSPlane> snd::analysis_tools::FillDS(const snd:
   return ds_planes;
 }
 
+std::pair<double, double> snd::analysis_tools::FindPlaneTimeRange(std::vector<snd::analysis_tools::Cluster> clusters){
+  if (clusters.empty()) return std::make_pair(std::nan(""), std::nan(""));
+  if (clusters.size() == 1) return std::make_pair(clusters[0].time, clusters[0].time);  
 
-// template <typename H>
-// std::vector<snd::analysis_tools::Cluster>
-// ClustersPositions(const std::vector<H>& hits, double max_gap)
+  std::sort(clusters.begin(), clusters.end(), [](const auto& a, const auto& b) {
+    return a.time < b.time;
+  });
+  return std::make_pair(clusters[0].time, clusters[clusters.size()-1].time);
+}
 
+std::pair<double, double> snd::analysis_tools::FindPlaneEnergyRange(std::vector<snd::analysis_tools::Cluster> clusters){
+  if (clusters.empty()) return std::make_pair(std::nan(""), std::nan(""));
+  if (clusters.size() == 1) return std::make_pair(clusters[0].energy, clusters[0].energy);  
+
+  std::sort(clusters.begin(), clusters.end(), [](const auto& a, const auto& b) {
+    return a.energy < b.energy;
+  });
+
+  return std::make_pair(clusters[0].energy, clusters[clusters.size()-1].energy);
+}
+
+std::pair<double, double> snd::analysis_tools::FindGlobalTimeRange(std::vector<std::vector<snd::analysis_tools::Cluster>> planes){
+  if (planes.empty()) return std::make_pair(std::nan(""), std::nan(""));
+
+  std::vector <double> min, max;
+  for (auto &cluster : planes) {
+    auto range = FindPlaneTimeRange(cluster);
+    if (!std::isnan(range.first))  min.push_back(range.first);
+    if (!std::isnan(range.second)) max.push_back(range.second);
+  }
+
+  return std::make_pair((*std::min_element(min.begin(), min.end())), (*std::max_element(max.begin(), max.end())));
+}
+
+std::pair<double, double> snd::analysis_tools::FindGlobalEnergyRange(std::vector<std::vector<snd::analysis_tools::Cluster>> planes){
+  if (planes.empty()) return std::make_pair(std::nan(""), std::nan(""));
+  std::vector <double> min, max;
+  for (auto &cluster : planes) {
+    auto range = FindPlaneEnergyRange(cluster);
+    if (!std::isnan(range.first))  min.push_back(range.first);
+    if (!std::isnan(range.second)) max.push_back(range.second);
+  }
+
+  return std::make_pair((*std::min_element(min.begin(), min.end())), (*std::max_element(max.begin(), max.end())));
+}
