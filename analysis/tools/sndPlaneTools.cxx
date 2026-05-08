@@ -112,48 +112,34 @@ std::vector<snd::analysis_tools::DSPlane> snd::analysis_tools::FillDS(const snd:
   return ds_planes;
 }
 
-std::pair<double, double> snd::analysis_tools::FindPlaneTimeRange(std::vector<snd::analysis_tools::Cluster> clusters){
-  if (clusters.empty()) return std::make_pair(std::nan(""), std::nan(""));
-  if (clusters.size() == 1) return std::make_pair(clusters[0].time, clusters[0].time);  
 
-  std::sort(clusters.begin(), clusters.end(), [](const auto& a, const auto& b) {
-    return a.time < b.time;
-  });
-  return std::make_pair(clusters[0].time, clusters[clusters.size()-1].time);
-}
+std::pair<double, double> snd::analysis_tools::FindRange(const std::vector<std::vector<snd::analysis_tools::Cluster>> &planes, const bool time){
 
-std::pair<double, double> snd::analysis_tools::FindPlaneEnergyRange(std::vector<snd::analysis_tools::Cluster> clusters){
-  if (clusters.empty()) return std::make_pair(std::nan(""), std::nan(""));
-  if (clusters.size() == 1) return std::make_pair(clusters[0].energy, clusters[0].energy);  
+  // flatten vector
+  size_t n_clusters{0};
+  for (const auto& p : planes) {
+      n_clusters += p.size();
+  }
+    
+  if (n_clusters==0) return std::make_pair(std::nan(""), std::nan(""));
+  std::vector<snd::analysis_tools::Cluster> flattened_planes; 
+  double min, max;
 
-  std::sort(clusters.begin(), clusters.end(), [](const auto& a, const auto& b) {
-    return a.energy < b.energy;
-  });
-
-  return std::make_pair(clusters[0].energy, clusters[clusters.size()-1].energy);
-}
-
-std::pair<double, double> snd::analysis_tools::FindGlobalTimeRange(std::vector<std::vector<snd::analysis_tools::Cluster>> planes){
-  if (planes.empty()) return std::make_pair(std::nan(""), std::nan(""));
-
-  std::vector <double> min, max;
-  for (auto &cluster : planes) {
-    auto range = FindPlaneTimeRange(cluster);
-    if (!std::isnan(range.first))  min.push_back(range.first);
-    if (!std::isnan(range.second)) max.push_back(range.second);
+  for (auto &c : planes) {
+    flattened_planes.insert(flattened_planes.end(), c.begin(), c.end());
   }
 
-  return std::make_pair((*std::min_element(min.begin(), min.end())), (*std::max_element(max.begin(), max.end())));
-}
-
-std::pair<double, double> snd::analysis_tools::FindGlobalEnergyRange(std::vector<std::vector<snd::analysis_tools::Cluster>> planes){
-  if (planes.empty()) return std::make_pair(std::nan(""), std::nan(""));
-  std::vector <double> min, max;
-  for (auto &cluster : planes) {
-    auto range = FindPlaneEnergyRange(cluster);
-    if (!std::isnan(range.first))  min.push_back(range.first);
-    if (!std::isnan(range.second)) max.push_back(range.second);
+  if (time) {
+    std::sort(flattened_planes.begin(), flattened_planes.end(), [](const auto& a, const auto& b) {
+      return a.time < b.time;
+    });
+  }
+  else {
+    std::sort(flattened_planes.begin(), flattened_planes.end(), [](const auto& a, const auto& b) {
+      return a.energy < b.energy;
+    });
   }
 
-  return std::make_pair((*std::min_element(min.begin(), min.end())), (*std::max_element(max.begin(), max.end())));
+  return std::make_pair(flattened_planes[0].time, flattened_planes[flattened_planes.size()-1].time);
 }
+

@@ -188,10 +188,7 @@ namespace snd {
                 return clusters;
         }
 
-        std::pair<double, double> FindPlaneTimeRange(std::vector<Cluster> clusters);
-        std::pair<double, double> FindPlaneEnergyRange(std::vector<Cluster> clusters);
-        std::pair<double, double> FindGlobalTimeRange(std::vector<std::vector<Cluster>> clusters);
-        std::pair<double, double> FindGlobalEnergyRange(std::vector<std::vector<Cluster>> clusters);
+        std::pair<double, double> FindRange(const std::vector<std::vector<Cluster>> &planes, const bool time = false);
     }
 }
 
