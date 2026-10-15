@@ -17,7 +17,6 @@
 #include "sndScifiHit.h"
 #include "MuFilterHit.h"
 
-
 std::vector<snd::analysis_tools::VetoPlane> snd::analysis_tools::FillVeto(const snd::Configuration &configuration,
                                                                           TClonesArray *mufi_hits,
                                                                           MuFilter *mufilter_geometry)
@@ -50,8 +49,8 @@ std::vector<snd::analysis_tools::ScifiPlane>
 snd::analysis_tools::FillScifi(const snd::Configuration &configuration, TClonesArray *sf_hits, Scifi *scifi_geometry)
 {
 
-  std::vector<snd::analysis_tools::ScifiPlane> scifi_planes;
-  int n_sf_hits{sf_hits->GetEntries()}; 
+   std::vector<snd::analysis_tools::ScifiPlane> scifi_planes;
+   const int n_sf_hits{sf_hits->GetEntries()};
 
    const int max_station = configuration.scifi_n_stations;
    std::vector<std::vector<sndScifiHit *>> stations_hits(max_station);
@@ -165,37 +164,3 @@ snd::analysis_tools::FindRange(const std::vector<std::vector<snd::analysis_tools
    else
       return std::make_pair(flattened_planes[0].energy, flattened_planes[flattened_planes.size() - 1].energy);
 }
-
-
-std::pair<double, double> snd::analysis_tools::FindRange(const std::vector<std::vector<snd::analysis_tools::Cluster>> &planes, const bool time){
-
-
-  // flatten vector
-  size_t n_clusters{0};
-  for (const auto& p : planes) {
-      n_clusters += p.size();
-  }
-    
-  if (n_clusters==0) return std::make_pair(std::nan(""), std::nan(""));
-  std::vector<snd::analysis_tools::Cluster> flattened_planes; 
-  double min, max;
-
-  for (auto &c : planes) {
-    flattened_planes.insert(flattened_planes.end(), c.begin(), c.end());
-  }
-
-  if (time) {
-    std::sort(flattened_planes.begin(), flattened_planes.end(), [](const auto& a, const auto& b) {
-      return a.time < b.time;
-    });
-  }
-  else {
-    std::sort(flattened_planes.begin(), flattened_planes.end(), [](const auto& a, const auto& b) {
-      return a.energy < b.energy;
-    });
-  }
-
-  if(time) return std::make_pair(flattened_planes[0].time, flattened_planes[flattened_planes.size()-1].time);
-  else return std::make_pair(flattened_planes[0].energy, flattened_planes[flattened_planes.size()-1].energy);
-}
-
