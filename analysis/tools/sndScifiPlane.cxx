@@ -45,7 +45,6 @@ snd::analysis_tools::ScifiPlane::ScifiPlane(std::vector<sndScifiHit*> snd_hits, 
         }
         hits_.push_back(hit);
     }
-    ComputeDensity();
 }
 
 const snd::analysis_tools::ScifiPlane::xy_pair<int> snd::analysis_tools::ScifiPlane::GetNHits() const
@@ -212,7 +211,6 @@ void snd::analysis_tools::ScifiPlane::TimeFilter(double min_timestamp, double ma
                                { return hit.timestamp < min_timestamp || hit.timestamp > max_timestamp; }),
                 hits_.end());
     
-    ComputeDensity();
 }
 
 snd::analysis_tools::ScifiPlane::xy_pair<double> snd::analysis_tools::ScifiPlane::GetPointQdc(const ROOT::Math::XYZPoint &point, double radius) const
