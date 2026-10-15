@@ -33,6 +33,7 @@ EmulsionDetPoint.cxx
 EmulsionDetContFact.cxx
 Scifi.cxx
 ScifiPoint.cxx
+SiPMqdcCalibrationConstants.cxx
 MuFilter.cxx
 MuFilterPoint.cxx
 MuFilterHit.cxx
@@ -40,6 +41,9 @@ sndScifiHit.cxx
 sndCluster.cxx
 SNDLHCEventHeader.cxx
 sndRecoTrack.cxx
+DriftTube.cxx
+DriftTubePoint.cxx
+DriftTubeHit.cxx
 )
 
 Set(HEADERS )
