@@ -52,7 +52,8 @@ namespace snd {
             void TimeFilter(double min_timestamp, double max_timestamp);
             // qdc from hits within a given point and radius (square, not circle)
             xy_pair<double> GetPointQdc(const ROOT::Math::XYZPoint &point, double radius) const;
-
+            
+            
         private:
             std::vector<ScifiHit> hits_;
             Configuration configuration_;
